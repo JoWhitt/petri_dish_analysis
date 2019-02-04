@@ -1,0 +1,8 @@
+1) burn raspian iso to sd card
+2) modify config.txt   add "dtoverlay=dwc2" to eof
+3) modify cmdline.txt  add "modules-load=dwc2,g_ether"   after rootwait
+4) put sd into pi, conect pi to pc using micro usb (data not power)
+5) wait about 1 minute to boot then:
+		ssh pi@raspberrypi.local
+	password : raspberry
+6) now connected to pi over ssh via usb :) 
