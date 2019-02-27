@@ -1,7 +1,8 @@
 import cv2 as cv
 import numpy as np
 
-image_path = "..\\sample_p_dish_images\\green_dots.jpg"
+
+image_path = "green_dots.jpg"
 
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
@@ -43,6 +44,65 @@ circles = np.round(circles[0, :]).astype("int")
 mask = get_dish_mask(image, circles[0])
 output = cv.bitwise_and(output, mask)
 
-# show the output image
-cv.imshow("output", np.hstack([image, output]))
+
+''' code to find blobs '''
+img = output
+image_edged = cv.Canny(gray, 90, 100)
+image_edged = cv.dilate(image_edged, None, iterations=1)
+image_edged = cv.erode(image_edged, None, iterations=2)
+cv.imshow("output",image_edged)
 cv.waitKey(0)
+
+
+def count_keypoints(keypoints):
+    count = 0
+    for kp in keypoints:
+        count+=1
+    return count
+
+
+def find_blobs(img):
+    # Setup SimpleBlobDetector parameters.
+    params = cv.SimpleBlobDetector_Params()
+     
+    # Change thresholds
+    params.minThreshold = 100;
+    params.maxThreshold = 5000;
+     
+    # Filter by Area.
+    params.filterByArea = False
+    params.minArea = 200
+     
+    # Filter by Circularity
+    params.filterByCircularity = True
+    params.minCircularity = 0.9
+     
+    # Filter by Convexity
+    params.filterByConvexity = True
+    params.minConvexity = 0.95
+     
+    #Filter by Inertia
+    params.filterByInertia = True
+    params.minInertiaRatio = 0.01
+
+    # Set up the detector with default parameters.
+    detector = cv.SimpleBlobDetector_create(params)
+     
+    # Detect blobs.
+    keypoints = detector.detect(img)
+    count = count_keypoints(keypoints)
+    print(count)
+      
+    # Draw detected blobs as red circles.
+    # cv2.DRAW_MATCHES_FLAGS_DRAW_RICH_KEYPOINTS ensures the size of the circle corresponds to the size of blob
+    img2 = img.copy()
+    for marker in keypoints:
+        img2 = cv.drawMarker(img2, tuple(int(i) for i in marker.pt), color=(255, 0, 0))
+    cv.imshow("output",img2)
+    cv.waitKey(0)
+
+find_blobs(img)
+
+# show the output image
+#cv.imshow("output", np.hstack([image, image_edged]))
+#cv.waitKey(0)
