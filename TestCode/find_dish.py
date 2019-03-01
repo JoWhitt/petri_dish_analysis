@@ -80,6 +80,8 @@ def image_subtraction_approach():
     kernel = np.ones((5,5),np.uint8)
     thresholded = cv.erode(thresholded, kernel)
 
+
+
     # get image contours
     im2, contours, hierarchy = cv.findContours(thresholded, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
