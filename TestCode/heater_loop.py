@@ -5,10 +5,23 @@ import cv2 as cv
 import picamera
 import time
 import RPi.GPIO as GPIO
+import sys
+import Adafruit_DHT
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
+GPIO.setup(16,GPIO.IN, pull_up_down=GPIO.PUD_UP) #button
+GPIO.setup(4,GPIO.OUT) #heater relay
+GPIO.setup(17,GPIO.OUT) #flash relay
+GPIO.output(17,GPIO.HIGH)
 
+
+def heater():
+	humidity, temperature = Adafruit_DHT.read_retry(11,26)
+	print(temperature)
+	if(temperature <=41):
+		GPIO.setup(4,GPIO.OUT) #heater relay
+		GPIO.output(4,GPIO.LOW)
 
 
 def findcircles():
@@ -18,7 +31,7 @@ def findcircles():
 	gray = cv.cvtColor(image, cv.COLOR_BGR2GRAY)
 	# detect circles in the image
 	circles = cv.HoughCircles(gray, cv.HOUGH_GRADIENT, 1.2, 50)
-	no_of_circles = 0  
+	no_of_circles = 0
 	# ensure at least some circles were found
 	if circles is not None:
 	# convert the (x, y) coordinates and radius of the circles to integers
@@ -38,21 +51,33 @@ def findcircles():
 
 
 def captureimage():
-	GPIO.setup(21,GPIO.OUT)
-	camera = picamera.PiCamera()
-	print( "relay on")
-	GPIO.output(21,GPIO.LOW)
+	camera = picamera.PiCamera() #camera
+	GPIO.output(17,GPIO.LOW)
 	time.sleep(1)
 	camera.capture("temp.jpg")
+	print("picture taken")
 	time.sleep(2)
-	print( "relay off")
-	GPIO.output(21,GPIO.HIGH)
+	GPIO.output(17,GPIO.HIGH)
+	camera.close()
 	return
 
 #main
 
 
+while True:
+	heater()
 
 
-captureimage()
-findcircles()
+
+#while True:
+#	heater()
+#	try:
+#		GPIO.wait_for_edge(16, GPIO.FALLING)
+#		time.sleep(2)
+#		captureimage()
+#		findcircles()
+#	except KeyboardInterrupt:
+#		GPIO.cleanup()
+#GPIO.cleanup()
+
+
