@@ -7,6 +7,15 @@ image_path = "green_dots.jpg"
 # ----------------------------------------------------------------------------
 # ----------------------------------------------------------------------------
 
+
+def resize_image(image, scale_factor):
+    width = int(image.shape[1] * scale_factor)
+    height = int(image.shape[0] * scale_factor)
+    dim = (width, height)
+    resized = cv.resize(image, dim, interpolation = cv.INTER_AREA)
+    return resized
+
+
 def get_dish_mask(image, circle):
 	(x, y, r) = circle
 
@@ -65,38 +74,64 @@ def find_blobs(img):
 
 
 def image_subtraction_approach():
+    filename_0 = 'sample_p_dish_images\\colony_growth_stage_0.jpg'
+    filename_1 = 'sample_p_dish_images\\colony_growth_stage_2.jpg'
+    scale_factor = 0.25 # this is the scale to which images are resized for screen display
+
+
     # read in images (for before & after growth)
-    empty_dish = cv.imread('..\\sample_p_dish_images\\sample_empty.jpg')
-    full_dish = cv.imread('..\\sample_p_dish_images\\sample_full.jpg')
+    empty_dish = cv.imread(filename_0)
+    full_dish = cv.imread(filename_1)
+    assert (empty_dish is not None)
+    assert (full_dish is not None)
 
-    # get subtraction image & convert to grayscale
+    # get subtraction image
     sub_result = cv.subtract(empty_dish, full_dish)
+    display_image = np.hstack((empty_dish, full_dish, sub_result))
+
+    # convert to grayscale, threshold & erode image
+    binary_threshold = 100
     sub_result = cv.cvtColor(sub_result, cv.COLOR_BGR2GRAY)
-    # display_image = np.hstack((empty_dish, full_dish, sub_result))
+    ret, thresholded = cv.threshold(sub_result, binary_threshold, 255, 0)
 
-    # threshold & erode image
-    ret, thresholded = cv.threshold(sub_result, 10, 255, 0)
-
-    kernel = np.ones((5,5),np.uint8)
+    kernel = np.ones((15,15),np.uint8)
     thresholded = cv.erode(thresholded, kernel)
-
-
+    thresholded = cv.dilate(thresholded, kernel)
+    
 
     # get image contours
     im2, contours, hierarchy = cv.findContours(thresholded, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
-    # create contour image
+    # analyse each contour region 
+    # & remove any contours which don't represent a bacteria colony
+    new_contours = []
+    for c in contours:
+        mask = np.zeros(thresholded.shape,np.uint8)
+        cv.drawContours(mask,[c],0,255,-1)
+        mean_pixel_val = cv.mean(thresholded, mask=mask) 
+        # mean val shows whether the region is a colony, or a hole in a detected colony
+        # holes will be dark, whereas colonies will be light
+
+        if int(mean_pixel_val[0]) > 200: # region is a colony, not just a hole
+            new_contours.append(c)
+
+    # create contour images
     result_image = full_dish.copy()
-    cv.drawContours(result_image, contours, -1, (0,255,0), 1)
+    cv.drawContours(result_image, new_contours, -1, (0,0,255), 1)
 
-    # count colonies & display on image
-    count = len(contours)
-    cv.putText(result_image, str(count), (10,30), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0))
+    # print results
+    count = len(new_contours)
+    print (count, "colonies found")
+    print (len(contours)-count, "false posatives disregarded")
 
+    # add text & show images
+    thresholded = resize_image(thresholded, scale_factor)
+    cv.imshow("thresholded",thresholded)
 
-    # cv.imshow("display_image",display_image)
-    # cv.imshow("contour_image",contour_image)
+    result_image = resize_image(result_image, scale_factor)
+    cv.putText(result_image, str(count), (10,30), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,255))
     cv.imshow("result_image",result_image)
+
     cv.waitKey(0)
     cv.destroyAllWindows()
 
