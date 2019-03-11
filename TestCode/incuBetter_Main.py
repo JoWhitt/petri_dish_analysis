@@ -10,13 +10,12 @@ import Adafruit_DHT
 import I2C_LCD_driver
 import datetime
 
-global pic_num
-
+pic_num = 0
 def button_callback(channel):
 
 	time.sleep(0.5)
 	print("Button was pushed!")
-	captureimage(pic_num)
+	captureimage()
 
 
 
@@ -29,7 +28,8 @@ def heater():
 		GPIO.output(4,GPIO.LOW)
 
 
-def findcircles(pic_num):
+def findcircles():
+	global pic_num
 	# load the image, clone it for output, and then convert it to grayscale
 	image = cv.imread("picture" + str(pic_num) + ".jpg")
 	output = image.copy()
@@ -53,13 +53,14 @@ def findcircles(pic_num):
 	mylcd.lcd_clear()
 	print( 'no of circles',no_of_circles)
 	mylcd.lcd_display_string('circles : ' + str(no_of_circles),2)
+	mylcd.lcd_clear()
 	mylcd.lcd_display_string("   IncuBetter",1)
-
 	cv.waitKey(0)
-	return pic_num + 1
+	pic_num = pic_num +1
+	return
 
 
-def captureimage(pic_num):
+def captureimage():
 	camera = picamera.PiCamera() #camera
 	camera.brightness = 50
 	camera.shutter_speed = 5500000000000
@@ -76,7 +77,7 @@ def captureimage(pic_num):
 	mylcd.lcd_clear()
 	mylcd.lcd_display_string("Flash off",2)
 	camera.close()
-	findcircles(pic_num)
+	findcircles()
 
 
 	return
@@ -99,14 +100,14 @@ INTERVAL = datetime.timedelta(hours=6)
 GPIO.add_event_detect(16,GPIO.FALLING,callback=button_callback,bouncetime=10000) # Setup event on pin 16 falling edge
 prev_picture = datetime.datetime.now()
 
-pic_num = 0
+
 
 while True:
 	heater()
 	if datetime.datetime.now() > prev_picture + INTERVAL:
 		prev_picture = datetime.datetime.now()
-		captureimage(pic_num)
-		pic_num = findcircles(pic_num)
+		captureimage()
+		findcircles()
 
 
 GPIO.cleanup()
