@@ -7,6 +7,7 @@ import time
 import RPi.GPIO as GPIO
 import sys
 import Adafruit_DHT
+import datetime
 
 GPIO.setmode(GPIO.BCM)
 GPIO.setwarnings(False)
@@ -15,6 +16,8 @@ GPIO.setup(4,GPIO.OUT) #heater relay
 GPIO.setup(17,GPIO.OUT) #flash relay
 GPIO.output(17,GPIO.HIGH)
 
+
+INTERVAL = datetime.timedelta(hours=6)
 
 def heater():
 	humidity, temperature = Adafruit_DHT.read_retry(11,26)
@@ -64,8 +67,14 @@ def captureimage():
 #main
 
 
+prev_picture = datetime.datetime.now()
+
 while True:
 	heater()
+	if datetime.datetime.now() > prev_picture + INTERVAL:
+		prev_picture = datetime.datetime.now()
+		captureimage()
+		findcircles()
 
 
 
