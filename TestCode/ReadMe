@@ -1,3 +1,1 @@
-sample hough for circles:
-
-pi version includes camera code while desktop version passed an image as an arguement
+desktop.xyz put into /home/pi/.config/autostart   will run incubetter_Main.py on boot
