@@ -1,0 +1,9 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=<Application Name Goes here>
+Comment=
+Exec=  sudo python3 /home/pi/transfers/cameraCV2.py
+StartupNotify=false
+Terminal=true
+Hidden=false
