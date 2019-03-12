@@ -74,8 +74,8 @@ def find_blobs(img):
 
 
 def image_subtraction_approach():
-    filename_0 = 'sample_p_dish_images\\colony_growth_stage_0.jpg'
-    filename_1 = 'sample_p_dish_images\\colony_growth_stage_2.jpg'
+    filename_0 = 'sample_p_dish_images/colony_growth_stage_0.jpg'
+    filename_1 = 'sample_p_dish_images/colony_growth_stage_3.jpg'
     scale_factor = 0.25 # this is the scale to which images are resized for screen display
 
 
@@ -105,6 +105,7 @@ def image_subtraction_approach():
     # analyse each contour region 
     # & remove any contours which don't represent a bacteria colony
     new_contours = []
+    result_image = full_dish.copy()
     for c in contours:
         mask = np.zeros(thresholded.shape,np.uint8)
         cv.drawContours(mask,[c],0,255,-1)
@@ -113,10 +114,22 @@ def image_subtraction_approach():
         # holes will be dark, whereas colonies will be light
 
         if int(mean_pixel_val[0]) > 200: # region is a colony, not just a hole
+
+            # analyse contour shape, to separate overlapping contours
+            hull = cv.convexHull(c)
+            # cv.drawContours(result_image, [hull], 0, (0,255,0))
+
+            # if area_between_contour_&_hull > threshold:  <----+
+            #   get region of interest (sub_image)              |
+            #   num_of_contours = get_contours(sub_image)       |
+            #   while (num_of_contours == 1):                   |
+            #       sub_image = erode(sub_image)                |
+            #       num_of_contours = get_contours(sub_image)   |   
+            # iterate back to here -----------------------------+
+
             new_contours.append(c)
 
     # create contour images
-    result_image = full_dish.copy()
     cv.drawContours(result_image, new_contours, -1, (0,0,255), 1)
 
     # print results
