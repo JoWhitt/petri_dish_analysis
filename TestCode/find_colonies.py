@@ -118,11 +118,9 @@ def main():
         scale_factor = full_cropped.shape[0]/empty_cropped.shape[0]
         empty_cropped = resize_image(empty_cropped, scale_factor)
 
-    cv.imshow("empty_cropped after resize", empty_cropped)
-    cv.imshow("full_cropped after resize", full_cropped)
-    cv.waitKey(0)
-
     image_subtraction_approach(empty_cropped, full_cropped)
 
 
-main()
+
+if __name__ == '__main__':
+    main()
