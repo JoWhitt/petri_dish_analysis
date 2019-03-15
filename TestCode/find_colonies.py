@@ -21,18 +21,19 @@ def image_subtraction_approach(empty_dish, full_dish):
     sub_result = cv.cvtColor(sub_result, cv.COLOR_BGR2GRAY)
     ret, thresholded = cv.threshold(sub_result, binary_threshold, 255, 0)
 
-    kernel = np.ones((5,5),np.uint8)
+    kernel = np.ones((2,2),np.uint8)
     thresholded = cv.erode(thresholded, kernel)
     thresholded = cv.dilate(thresholded, kernel)
     
 
     # get image contours
-    im2, contours, hierarchy = cv.findContours(thresholded, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+    contours, hierarchy = cv.findContours(thresholded, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
 
     # analyse each contour region 
     # & remove any contours which don't represent a bacteria colony
     new_contours = []
     result_image = full_dish.copy()
+    print(len(contours))
     for c in contours:
         mask = np.zeros(thresholded.shape,np.uint8)
         cv.drawContours(mask,[c],0,255,-1)
@@ -41,7 +42,6 @@ def image_subtraction_approach(empty_dish, full_dish):
         # holes will be dark, whereas colonies will be light
 
         if int(mean_pixel_val[0]) > 200: # region is a colony, not just a hole
-
             new_contours.append(c)	
             # analyse contour shape, to separate overlapping contours
             hull = cv.convexHull(c)
@@ -54,7 +54,6 @@ def image_subtraction_approach(empty_dish, full_dish):
                 x,y,w,h = cv.boundingRect(c)
                 roi = thresholded[y:y+h,x:x+w]
                 cv.rectangle(result_image,(x,y),(x+w,y+h),(0,0,255),2)
-              
                 contours_2, hierarchy = cv.findContours(roi, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
                 while len(contours_2) == 1:
                     kernel = np.ones((5,5),np.uint8)
@@ -72,8 +71,6 @@ def image_subtraction_approach(empty_dish, full_dish):
             #       sub_image = erode(sub_image)                |
             #       num_of_contours = get_contours(sub_image)   |   
             # iterate back to here -----------------------------+
-
-            new_contours.append(c)
 
     # create contour images
     cv.drawContours(result_image, new_contours, -1, (0,0,255), 1)
@@ -124,8 +121,8 @@ def get_cropped_image(input_image):
 def main():
    # empty_filename = 'sample_p_dish_images/one pair/picture0.jpg'
    # full_filename = 'sample_p_dish_images/one pair/picture1.jpg'
-    empty_filename = 'colony_growth_stage_0.jpg'
-    full_filename = 'colony_growth_stage_3.jpg'
+    empty_filename = 'picture0.jpg'
+    full_filename = 'picture1.jpg'
 
     empty_image = cv.imread(empty_filename)
     full_image = cv.imread(full_filename)
