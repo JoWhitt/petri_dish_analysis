@@ -117,6 +117,39 @@ def get_cropped_image(input_image):
     cropped = masked_image[(y-r):(y+r), (x-r):(x+r)]
 
     return cropped
+	
+def split_image(image):
+    height, width = image.shape[:2]
+
+    # Top left
+    start_row, start_col = int(0), int(0)
+    end_row, end_col = int(height * .5), int(width* .5)
+    top_left = image[start_row:end_row , start_col:end_col]
+
+    # Top right
+    start_row, start_col = int(0), int(width * .45)
+    end_row, end_col = int(height * .55), int(width)
+    top_right = image[start_row:end_row , start_col:end_col]
+
+    # Bottom left
+    start_row, start_col = int(height * .5), int(0)
+    end_row, end_col = int(height), int(width* .5)
+    bottom_left = image[start_row:end_row , start_col:end_col]
+
+    # bottom right
+    start_row, start_col = int(height * .5), int(width * .5)
+    end_row, end_col = int(height), int(width)
+    bottom_right = image[start_row:end_row , start_col:end_col]
+
+    top_left.size
+    top_right.size
+    bottom_left.size
+    bottom_right.size
+	
+    images = [top_left,top_right,bottom_left,bottom_right]
+	
+    return images
+
 
 
 def main():
@@ -127,17 +160,29 @@ def main():
 
     empty_image = cv.imread(empty_filename)
     full_image = cv.imread(full_filename)
-    assert (empty_image is not None) and (full_image is not None)
+    
+	split_empty_image = split_image(empty_image)
+    split_full_image = split_image(full_image)
+	
+    zip_image = zip(split_empty_image,split_full_image)
+    colony_count = []
+	
+    for i,j in zip_image:
+        cv.imshow("image",j)
+        cv.waitKey(0)
+	
+        assert (i is not None) and (j is not None)
+        empty_cropped = get_cropped_image(i)
+        full_cropped = get_cropped_image(j)
 
-    empty_cropped = get_cropped_image(empty_image)
-    full_cropped = get_cropped_image(full_image)
+		# scale images to match
+        if empty_cropped.shape[0] != full_cropped.shape[0]: # images are different sizes
+            scale_factor = full_cropped.shape[0]/empty_cropped.shape[0]
+            empty_cropped = resize_image(empty_cropped, scale_factor)
 
-    # scale images to match
-    if empty_cropped.shape[0] != full_cropped.shape[0]: # images are different sizes
-        scale_factor = full_cropped.shape[0]/empty_cropped.shape[0]
-        empty_cropped = resize_image(empty_cropped, scale_factor)
-
-    image_subtraction_approach(empty_cropped, full_cropped)
+        colony_count.append( image_subtraction_approach(empty_cropped, full_cropped))
+	   
+    print(colony_count)
 
 
 
