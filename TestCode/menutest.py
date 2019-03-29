@@ -164,10 +164,9 @@ def main():
         elif Current_state == States.PREHEATING:
 
             display_current_temp()
+            update()
 
             # just needs to check if current temp is set temp than changes state
-
-            update()
 
         elif Current_state == States.LOAD_DISHES:
 
@@ -179,7 +178,7 @@ def main():
         elif Current_state == States.TAKING_PIC:
 
             print("take pic")
-            mylcd.lcd_display_string("take pic",2)
+           # mylcd.lcd_display_string("take pic",2)
             captureimage()
 
             # just needs changes state after picture
@@ -200,27 +199,28 @@ def main():
 
 def captureimage():
     global pic_num
+    GPIO.setup(17,GPIO.OUT)
     camera = picamera.PiCamera() #camera
-	camera.brightness = 50
-	camera.shutter_speed = 5500000000000
-	GPIO.output(17,GPIO.LOW)
-	mylcd.lcd_clear()
-	mylcd.lcd_display_string("Flash on",2)
-	time.sleep(2)
-	camera.capture("/home/pi/transfers/picture" + str(pic_num) + ".jpg"
-	print("picture taken")
-	mylcd.lcd_clear()
-	mylcd.lcd_display_string("Picture Taken",2)
-	time.sleep(2)
-	GPIO.output(17,GPIO.HIGH)
-	mylcd.lcd_clear()
-	mylcd.lcd_display_string("Flash off",2)
-	time.sleep(1)
-	mylcd.lcd_clear()
-	camera.close()
+    camera.brightness = 50
+    camera.shutter_speed = 5500000000000
+    GPIO.output(17,GPIO.LOW)
+    mylcd.lcd_clear()
+    mylcd.lcd_display_string("Flash on",2)
+    time.sleep(2)
+    camera.capture("/home/pi/transfers/picture" + str(pic_num) + ".jpg")
+    print("picture taken")
+    mylcd.lcd_clear()
+    mylcd.lcd_display_string("Picture Taken",2)
+    time.sleep(2)
+    GPIO.output(17,GPIO.HIGH)
+    mylcd.lcd_clear()
+    mylcd.lcd_display_string("Flash off",2)
+    time.sleep(1)
+    mylcd.lcd_clear()
+    camera.close()
     if(pic_num != 0):
         mylcd.lcd_display_string("  Analyzing",1)
-    	mylcd.lcd_display_string("   Images...",2)
+        mylcd.lcd_display_string("   Images...",2)
         count_colonies()
     pic_num = pic_num + 1
 
@@ -233,7 +233,7 @@ def heater():
         if(currentTemp <= Temp):
             GPIO.setup(4,GPIO.OUT)		 #heater relay setup
             GPIO.output(4,GPIO.LOW)		 #heater on
-        else currentTemp = temperature
+        else: currentTemp = Temp
 
 
 def resize_image(image, scale_factor):
@@ -318,7 +318,6 @@ def image_subtraction_approach(empty_dish, full_dish):
     # add text & show images
     thresholded = resize_image(thresholded, scale_factor)
     #cv.imshow("thresholded",thresholded)
-
     result_image = resize_image(result_image, scale_factor)
     #cv.putText(result_image, str(count), (10,30), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,255))
     #cv.imshow("result_image",result_image)
@@ -341,7 +340,6 @@ def get_cropped_image(input_image):
 
     circles = np.round(circles[0, :]).astype("int")
     (x, y, r) = circles[0]
-
     ''' 2. CREATE & APPLY MASK '''
     mask = np.zeros(input_image.shape, np.uint8) # initialise image
     cv.circle(mask, (x, y), int(r/2), (255,255,255), r+1) # draw circle into mask
