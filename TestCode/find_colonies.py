@@ -10,6 +10,10 @@ def resize_image(image, scale_factor):
 
 
 def image_subtraction_approach(empty_dish, full_dish):
+    # updated 29/03/2019
+    if (empty_dish is None) or (full_dish is None):
+        return 0
+
     scale_factor = 1.3# 0.25 # this is the scale to which images are resized for screen display
 
     # get subtraction image
@@ -27,7 +31,10 @@ def image_subtraction_approach(empty_dish, full_dish):
     
 
     # get image contours
-    contours, hierarchy = cv.findContours(thresholded, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    # updated 29/03/2019
+    # the correct way to call this function depends on the version of opencv run
+    ret, contours, hierarchy = cv.findContours(thresholded, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    # contours, hierarchy = cv.findContours(thresholded, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
 
     # analyse each contour region 
     # & remove any contours which don't represent a bacteria colony
@@ -43,7 +50,7 @@ def image_subtraction_approach(empty_dish, full_dish):
 
         if int(mean_pixel_val[0]) > 200: # region is a colony, not just a hole
             new_contours.append(c)	
-			
+
             # analyse contour shape, to separate overlapping contours
             hull = cv.convexHull(c)
             area = cv.contourArea(c)
@@ -65,14 +72,6 @@ def image_subtraction_approach(empty_dish, full_dish):
                     new_contours.append(cnt)
             # cv.drawContours(result_image, [hull], 0, (0,255,0))
 
-            # if area_between_contour_&_hull > threshold:  <----+
-            #   get region of interest (sub_image)              |
-            #   num_of_contours = get_contours(sub_image)       |
-            #   while (num_of_contours == 1):                   |
-            #       sub_image = erode(sub_image)                |
-            #       num_of_contours = get_contours(sub_image)   |   
-            # iterate back to here -----------------------------+
-
     # create contour images
     cv.drawContours(result_image, new_contours, -1, (0,0,255), 1)
 
@@ -92,10 +91,14 @@ def image_subtraction_approach(empty_dish, full_dish):
     cv.waitKey(0)
     cv.destroyAllWindows()
 
+    return count
 
-''' read in two images (containing empty and filled petri dishes respectively)
-display & return two cropped images of the same scale - containing the two dishes '''
+
+''' read image (containing one petri dish) display & 
+return cropped image with masked out background'''
 def get_cropped_image(input_image):
+    cropped_image = None
+
     ''' 1. FIND DISH '''
     # smooth image & convert to grayscale
     smoothed = cv.medianBlur(input_image,5)
@@ -103,21 +106,25 @@ def get_cropped_image(input_image):
 
     # apply hough algorithm to locate dish 
     circles = cv.HoughCircles(gray,cv.HOUGH_GRADIENT,1,100)
-    assert (circles is not None) and (len(circles)==1)  # assert one and only one dish found
-    
-    circles = np.round(circles[0, :]).astype("int")
-    (x, y, r) = circles[0]
 
-    ''' 2. CREATE & APPLY MASK '''
-    mask = np.zeros(input_image.shape, np.uint8) # initialise image
-    cv.circle(mask, (x, y), int(r/2), (255,255,255), r+1) # draw circle into mask
-    masked_image = cv.bitwise_and(input_image, mask)
+    # updated 29/03/2019
+    # one and only one dish found
+    if (circles is not None)  and (len(circles)==1):
+        circles = np.round(circles[0, :]).astype("int")
+        (x, y, r) = circles[0]
 
-    ''' 3. CROP IMAGE '''
-    cropped = masked_image[(y-r):(y+r), (x-r):(x+r)]
+        ''' 2. CREATE & APPLY MASK '''
+        mask = np.zeros(input_image.shape, np.uint8) # initialise image
+        cv.circle(mask, (x, y), int(r/2), (255,255,255), r+1) # draw circle into mask
+        masked_image = cv.bitwise_and(input_image, mask)
 
-    return cropped
-	
+        ''' 3. CROP IMAGE '''
+        cropped_image = masked_image[(y-r):(y+r), (x-r):(x+r)]
+
+    return cropped_image
+
+
+
 def split_image(image):
     height, width = image.shape[:2]
 
@@ -145,43 +152,52 @@ def split_image(image):
     top_right.size
     bottom_left.size
     bottom_right.size
-	
+
     images = [top_left,top_right,bottom_left,bottom_right]
-	
+
     return images
 
 
 
 def main():
-   # empty_filename = 'sample_p_dish_images/one pair/picture0.jpg'
-   # full_filename = 'sample_p_dish_images/one pair/picture1.jpg'
-    empty_filename = 'colony_growth_stage_0.jpg'
-    full_filename = 'colony_growth_stage_2.jpg'
+   # empty_filename = '../sample_p_dish_images/one pair/picture0.jpg'
+   # full_filename = '../sample_p_dish_images/one pair/picture1.jpg'
+    empty_filename = '../sample_p_dish_images/colony_growth_stage_0.jpg'
+    full_filename = '../sample_p_dish_images/colony_growth_stage_2.jpg'
+    empty_filename = '../sample_p_dish_images/four_empty_dishes.png'
+    full_filename = '../sample_p_dish_images/four_full_dishes.png'
 
+    # updated 29/03/2019
     empty_image = cv.imread(empty_filename)
     full_image = cv.imread(full_filename)
-    
-	split_empty_image = split_image(empty_image)
+    assert (empty_image is not None) and (full_image is not None)
+
+    split_empty_image = split_image(empty_image)
     split_full_image = split_image(full_image)
-	
+
     zip_image = zip(split_empty_image,split_full_image)
     colony_count = []
-	
+
+    iteration_number = 0
     for i,j in zip_image:
-        cv.imshow("image",j)
+        print ('iteration_number:', iteration_number)
+
+        cv.imshow("quarter image",j)
         cv.waitKey(0)
-	
+
         assert (i is not None) and (j is not None)
         empty_cropped = get_cropped_image(i)
         full_cropped = get_cropped_image(j)
 
-		# scale images to match
-        if empty_cropped.shape[0] != full_cropped.shape[0]: # images are different sizes
-            scale_factor = full_cropped.shape[0]/empty_cropped.shape[0]
-            empty_cropped = resize_image(empty_cropped, scale_factor)
+        # updated 29/03/2019
+        # scale images to match
+        if (empty_cropped is not None) and (full_cropped is not None):
+            if empty_cropped.shape[0] != full_cropped.shape[0]: # images are different sizes
+                scale_factor = full_cropped.shape[0]/empty_cropped.shape[0]
+                empty_cropped = resize_image(empty_cropped, scale_factor)
 
-        colony_count.append( image_subtraction_approach(empty_cropped, full_cropped))
-	   
+        colony_count.append( image_subtraction_approach(empty_cropped, full_cropped) )
+       
     print(colony_count)
 
 
