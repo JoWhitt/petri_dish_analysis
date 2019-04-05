@@ -16,7 +16,8 @@ os.nice(20)
 mylcd=I2C_LCD_driver.lcd()
 pic_num = 0
 currentTemp = 0
-
+busy = False
+incubation_period = 0
 
 
 
@@ -49,7 +50,9 @@ def down_btn(channel):           #button interupt
         Time_interval -=1
 
     elif Current_state == States.DISPLAY_MODE:
-        captureimage()
+        global busy
+        if(busy == False):
+            captureimage()
 
 
 def next_btn(channel):           #button interupt
@@ -108,22 +111,26 @@ Time_interval = 6
 def display_temp():
     print("Temp is {}".format(Temp))
     mylcd.lcd_clear()
+    mylcd.lcd_display_string("   IncuBetter",1)
     mylcd.lcd_display_string("Temp: %s" %Temp,2)
 
 def display_current_temp():
     global currentTemp
     print("cur-Temp is {}".format(currentTemp))
     mylcd.lcd_clear()
+    mylcd.lcd_display_string("   IncuBetter",1)
     mylcd.lcd_display_string("Temp: %s" %currentTemp,2)
 
 def display_time():
     print("Time is {}".format(Time))
     mylcd.lcd_clear()
+    mylcd.lcd_display_string("   IncuBetter",1)
     mylcd.lcd_display_string("Time: %s" %Time,2)
 
 def display_interval():
     print("Time interval is {}".format(Time_interval))
     mylcd.lcd_clear()
+    mylcd.lcd_display_string("   IncuBetter",1)
     mylcd.lcd_display_string("Time int: %s" %Time_interval,2)
 
 def update():
@@ -136,9 +143,13 @@ def take_pic():
     pass
 
 def display_stuff():
-    print("Display")
+    global incubation_period
+    hours_seconds = 60 * 60
+    incubation_seconds_left =(incubation_period - datetime.datetime.now()).total_seconds()
+    incubation_time_left = round(incubation_seconds_left/hours_seconds, 1)
     mylcd.lcd_clear()
-    mylcd.lcd_display_string("displaying stuff",2)
+    mylcd.lcd_display_string("   IncuBetter",1)
+    mylcd.lcd_display_string("%s hours left" %incubation_time_left,2)
 
     pass
 
@@ -162,7 +173,9 @@ def main():
             display_interval()
 
         elif Current_state == States.PREHEATING:
-
+            global Time
+            global incubation_period
+            incubation_period = datetime.datetime.now() + datetime.timedelta(hours=Time)
             display_current_temp()
             update()
 
@@ -171,14 +184,11 @@ def main():
         elif Current_state == States.LOAD_DISHES:
 
             print("Load dishes")
+            mylcd.lcd_display_string("   IncuBetter",1)
             mylcd.lcd_display_string("load Dishes",2)
-
             pass
 
         elif Current_state == States.TAKING_PIC:
-
-            print("take pic")
-           # mylcd.lcd_display_string("take pic",2)
             captureimage()
 
             # just needs changes state after picture
@@ -186,8 +196,9 @@ def main():
             update()
 
         elif Current_state == States.DISPLAY_MODE:
-
-            display_stuff()
+            global busy
+            if(busy == False):
+                display_stuff()
 
         # This was added for testing purposes
 
@@ -199,10 +210,13 @@ def main():
 
 def captureimage():
     global pic_num
+    global busy
+    busy = True
     GPIO.setup(17,GPIO.OUT)
     camera = picamera.PiCamera() #camera
     camera.brightness = 50
     camera.shutter_speed = 5500000000000
+    camera.resolution = (3280, 2464)
     GPIO.output(17,GPIO.LOW)
     mylcd.lcd_clear()
     mylcd.lcd_display_string("Flash on",2)
@@ -219,10 +233,14 @@ def captureimage():
     mylcd.lcd_clear()
     camera.close()
     if(pic_num != 0):
+        mylcd.lcd_clear()
+        time.sleep(2)
         mylcd.lcd_display_string("  Analyzing",1)
         mylcd.lcd_display_string("   Images...",2)
+        time.sleep(5)
         count_colonies()
     pic_num = pic_num + 1
+    busy = False
 
 
 def heater():
@@ -240,12 +258,13 @@ def resize_image(image, scale_factor):
     width = int(image.shape[1] * scale_factor)
     height = int(image.shape[0] * scale_factor)
     dim = (width, height)
-    resized = cv.resize(image, dim, interpolation = cv.INTER_AREA)
+    resized = cv.resize(image, dim, interpolation = cv.INTER_CUBIC)
     return resized
 
 def image_subtraction_approach(empty_dish, full_dish):
+    if(empty_dish is None) or (full_dish is None):
+        return 0
     scale_factor = 1.3# 0.25 # this is the scale to which images are resized for screen display
-
     # get subtraction image
     sub_result = cv.subtract(empty_dish, full_dish)
     display_image = np.hstack((empty_dish, full_dish, sub_result))
@@ -254,15 +273,14 @@ def image_subtraction_approach(empty_dish, full_dish):
     binary_threshold = 100
     sub_result = cv.cvtColor(sub_result, cv.COLOR_BGR2GRAY)
     ret, thresholded = cv.threshold(sub_result, binary_threshold, 255, 0)
-
     kernel = np.ones((5,5),np.uint8)
     thresholded = cv.erode(thresholded, kernel)
     thresholded = cv.dilate(thresholded, kernel)
 
 
     # get image contours
-    contours, hierarchy = cv.findContours(thresholded, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-
+    #contours, hierarchy = cv.findContours(thresholded, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    ret,contours,hierarchy = cv.findContours(thresholded, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
     # analyse each contour region
     # & remove any contours which don't represent a bacteria colony
     new_contours = []
@@ -289,12 +307,12 @@ def image_subtraction_approach(empty_dish, full_dish):
                 x,y,w,h = cv.boundingRect(c)
                 roi = thresholded[y:y+h,x:x+w]
                 cv.rectangle(result_image,(x,y),(x+w,y+h),(0,0,255),2)
-                contours_2, hierarchy = cv.findContours(roi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+                ret,contours_2, hierarchy = cv.findContours(roi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
                 while len(contours_2) == 1:
                     kernel = np.ones((5,5),np.uint8)
                     roi = cv.erode(roi, kernel)
                     #cv.imshow('eroded image', roi)
-                    contours_2, hierarchy = cv.findContours(roi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+                    ret, contours_2, hierarchy = cv.findContours(roi, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
                 for cnt in contours_2:
                     new_contours.append(cnt)
             # cv.drawContours(result_image, [hull], 0, (0,255,0))
@@ -321,7 +339,7 @@ def image_subtraction_approach(empty_dish, full_dish):
     result_image = resize_image(result_image, scale_factor)
     #cv.putText(result_image, str(count), (10,30), cv.FONT_HERSHEY_SIMPLEX, 0.8, (0,0,255))
     #cv.imshow("result_image",result_image)
-
+    return count
     #cv.waitKey(0)
     #cv.destroyAllWindows()
 
@@ -329,26 +347,28 @@ def image_subtraction_approach(empty_dish, full_dish):
 ''' read in two images (containing empty and filled petri dishes respectively)
 display & return two cropped images of the same scale - containing the two dishes '''
 def get_cropped_image(input_image):
+    cropped_image = None
+
     ''' 1. FIND DISH '''
     # smooth image & convert to grayscale
     smoothed = cv.medianBlur(input_image,5)
     gray = cv.cvtColor(smoothed, cv.COLOR_BGR2GRAY)
-
     # apply hough algorithm to locate dish
     circles = cv.HoughCircles(gray,cv.HOUGH_GRADIENT,1,100)
-    assert (circles is not None) and (len(circles)==1)  # assert one and only one dish found
 
-    circles = np.round(circles[0, :]).astype("int")
-    (x, y, r) = circles[0]
-    ''' 2. CREATE & APPLY MASK '''
-    mask = np.zeros(input_image.shape, np.uint8) # initialise image
-    cv.circle(mask, (x, y), int(r/2), (255,255,255), r+1) # draw circle into mask
-    masked_image = cv.bitwise_and(input_image, mask)
+    if (circles is not None) and (len(circles)==1):
 
-    ''' 3. CROP IMAGE '''
-    cropped = masked_image[(y-r):(y+r), (x-r):(x+r)]
+        circles = np.round(circles[0, :]).astype("int")
+        (x, y, r) = circles[0]
+        ''' 2. CREATE & APPLY MASK '''
+        mask = np.zeros(input_image.shape, np.uint8) # initialise image
+        cv.circle(mask, (x, y), int(r/2), (255,255,255), r+1) # draw circle into mask
+        masked_image = cv.bitwise_and(input_image, mask)
 
-    return cropped
+        ''' 3. CROP IMAGE '''
+        cropped_image = masked_image[(y-r):(y+r), (x-r):(x+r)]
+
+    return cropped_image
 
 def split_image(image):
     height, width = image.shape[:2]
@@ -389,11 +409,20 @@ def count_colonies():
     empty_image = cv.imread("/home/pi/transfers/picture0.jpg")
     full_image = cv.imread("/home/pi/transfers/picture" + str(pic_num) + ".jpg")
 
+
+
+
+
+
+    assert (empty_image is not None) and (full_image is not None)
+
     split_empty_image = split_image(empty_image)
     split_full_image = split_image(full_image)
 
     zip_image = zip(split_empty_image,split_full_image)
     colony_count = []
+
+    iteration_number=0
 
     for i,j in zip_image:
         #cv.imshow("image",j)
@@ -403,15 +432,22 @@ def count_colonies():
         empty_cropped = get_cropped_image(i)
         full_cropped = get_cropped_image(j)
 
+
+
     # scale images to match
-        if empty_cropped.shape[0] != full_cropped.shape[0]: # images are different sizes
-            scale_factor = full_cropped.shape[0]/empty_cropped.shape[0]
-            empty_cropped = resize_image(empty_cropped, scale_factor)
+        if(empty_cropped is not None) and (full_cropped is not None):
+
+            if empty_cropped.shape[0] != full_cropped.shape[0]: # images are different sizes
+                scale_factor = full_cropped.shape[0]/empty_cropped.shape[0]
+                empty_cropped = resize_image(empty_cropped, scale_factor)
 
         colony_count.append( image_subtraction_approach(empty_cropped, full_cropped))
-
+    print('count : ')
+    mylcd.lcd_clear()
+    mylcd.lcd_display_string("Counts : ",1)
+    mylcd.lcd_display_string("%s" %colony_count,2)
     print(colony_count)
-
+    time.sleep(15)
 
 
 GPIO.setmode(GPIO.BCM)
