@@ -72,6 +72,35 @@ def image_subtraction_approach(empty_dish, full_dish):
                     new_contours.append(cnt)
             # cv.drawContours(result_image, [hull], 0, (0,255,0))
 
+			
+    mean_val = []
+    for cnt in new_contours:
+        mask = np.zeros(thresholded.shape,np.uint8)
+        cv.drawContours(mask,[cnt],0,255,-1)
+        mean_val.append(cv.mean(full_dish, mask=mask))
+		
+	#red, blue, yellow, gray (in bgr format)	
+    red_lower = [0,0,112]
+    red_upper = [201,209,255]
+    blue_lower = [102,0,0]
+    blue_upper = [255,227,175]
+    red_count = 0
+    blue_count = 0
+    other_count = 0
+    for i in mean_val:
+        if i[0] > red_lower[0] and i[0] <= red_upper[0] and i[1] > red_lower[1] and i[1]<= red_upper[1] and i[2] > red_lower[2] and i[2] <= red_upper[2]:
+            red_count+=1
+        elif i[0] > blue_lower[0] and i[0] <= blue_upper[0] and i[1] > blue_lower[1] and i[1]<= blue_upper[1] and i[2] > blue_lower[2] and i[2] <= blue_upper[2]:
+            blue_count+=1
+        else:
+            other_count+=1
+
+    colour_count = []
+    colour_count.append(red_count)
+    colour_count.append(blue_count)
+    colour_count.append(other_count)
+    print("colours",colour_count)
+
     # create contour images
     cv.drawContours(result_image, new_contours, -1, (0,0,255), 1)
 
@@ -91,7 +120,9 @@ def image_subtraction_approach(empty_dish, full_dish):
     cv.waitKey(0)
     cv.destroyAllWindows()
 
-    return count
+    both_counts = [count, colour_count]
+
+    return both_counts
 
 
 ''' read image (containing one petri dish) display & 
